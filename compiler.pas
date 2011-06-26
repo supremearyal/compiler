@@ -1,5 +1,5 @@
 {--------------------------------------------------------------}
-program Cradle;
+program compiler;
 
 {--------------------------------------------------------------}
 { Constant Declarations }
@@ -49,10 +49,15 @@ end; { Expected }
 {--------------------------------------------------------------}
 { Match a Specific Input Character }
 
+procedure SkipWhite; Forward;
+
 procedure Match(x : char);
 begin
-   if Look = x then GetChar
-   else Expected('''' + x + '''');
+   if Look <> x then Expected('''' + x + '''')
+   else begin
+	  GetChar;
+	  SkipWhite;
+   end;
 end; { Match }
 
 {--------------------------------------------------------------}
@@ -80,23 +85,60 @@ begin
 end; { IsDigit }
 
 {--------------------------------------------------------------}
+{ Recognize an Alphanumeric }
+
+function IsAlNum(c : char): boolean;
+begin
+   IsAlNum := IsAlpha(c) or IsDigit(c);
+end; { IsAlNum }
+
+{--------------------------------------------------------------}
+{ Recognize White Space }
+
+function IsWhite(c : char): boolean;
+begin
+   IsWhite := c in [' ', TAB];
+end; { IsWhite }
+
+{--------------------------------------------------------------}
+{ Skip Over Leading White Space }
+
+procedure SkipWhite;
+begin
+   while IsWhite(Look) do
+	  GetChar;
+end; { SkipWhite }
+
+{--------------------------------------------------------------}
 { Get an Identifier }
 
-function GetName: char;
+function GetName: string;
+var Token : string;
 begin
+   Token := '';
    if not IsAlpha(Look) then Expected('Name');
-   GetName := UpCase(Look);
-   GetChar;
+   while IsAlNum(Look) do begin
+	  Token := Token + UpCase(Look);
+	  GetChar;
+   end;
+   GetName := Token;
+   SkipWhite;
 end; { GetName }
 
 {--------------------------------------------------------------}
 { Get a Number }
 
-function GetNum: char;
+function GetNum: string;
+var Value : string;
 begin
+   Value := '';
    if not IsDigit(Look) then Expected('Integer');
-   GetNum := Look;
-   GetChar;
+   while IsDigit(Look) do begin
+	  Value := Value + Look;
+	  GetChar;
+   end;
+   GetNum := Value;
+   SkipWhite;
 end; { GetNum }
 
 {--------------------------------------------------------------}
@@ -151,13 +193,14 @@ end; { AsmRequiredEnd }
 procedure Init;
 begin
    GetChar;
+   SkipWhite;
 end; { Init }
 
 {--------------------------------------------------------------}
 { Parse and Translate an Identifier }
 
 procedure Ident;
-var Name : char;
+var Name : string;
 begin
    Name := GetName;
    if Look = '(' then begin
@@ -275,7 +318,7 @@ end; { Expression }
 { Parse and Translate an Assignment Statement }
 
 procedure Assignment;
-var Name : char;
+var Name : string;
 begin
    Name := GetName;
    Match('=');
