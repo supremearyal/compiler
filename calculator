@@ -1,0 +1,9 @@
+#!/bin/sh
+
+while :
+do
+	read inp
+	echo $inp | ./compiler > test.asm
+	make prog=test program > /dev/null
+	./test
+done
