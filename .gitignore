@@ -1,4 +1,2 @@
-*.asm
 *.o
-test
-compiler
+interpreter
