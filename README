@@ -1,0 +1,8 @@
+This is a little compiler written by using Jack Crenshaw's tutorial in
+Pascal. The code is basically identical to the tutorial, but I've
+modified to assembly instructions to amd64 with linux calling
+conventions.
+
+I've used fpc to compile the compiler and nasm to assemble the
+resulting assembly from the compiler and finally tcc to link the
+object file, but gcc works too.
