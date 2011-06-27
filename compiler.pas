@@ -5,12 +5,12 @@ program Cradle;
 { Constant Declarations }
 
 const TAB = ^I;
-const CR  = '\n';
 
 {--------------------------------------------------------------}
 { Variable Declarations }
 
-var Look: char; { Lookahead Character }
+var Look  : char;		{ Lookahead Character }
+   Lcount : integer;	{ Label Counter }
 
 {--------------------------------------------------------------}
 { Read New Character From Input Stream }
@@ -150,150 +150,99 @@ end; { AsmRequiredEnd }
 
 procedure Init;
 begin
+   LCount := 0;
    GetChar;
 end; { Init }
 
 {--------------------------------------------------------------}
-{ Parse and Translate an Identifier }
+{ Recognize and Translate an "Other" }
 
-procedure Ident;
-var Name : char;
+procedure Other;
 begin
-   Name := GetName;
-   if Look = '(' then begin
-	  Match('(');
-	  Match(')');
-	  EmitLn('call ' + Name);
-   end
-   else
-	  EmitLn('mov r8, ' + Name);
-end; { Ident }
+   EmitLn(GetName);
+end; { Other }
 
 {--------------------------------------------------------------}
-{ Parse and Translate a Math Factor }
+{ Recognize and Translate a Statement Block }
 
-procedure Expression; Forward;
+procedure DoIf; Forward;
 
-procedure Factor;
+procedure Block;
 begin
-   if Look = '(' then begin
-	  Match('(');
-	  Expression;
-	  Match(')');
-   end
-   else if IsAlpha(Look) then
-	  Ident
-   else
-	  EmitLn('mov r8, ' + GetNum);
-end; { Factor }
-
-{--------------------------------------------------------------}
-{ Recognize and Translate a Multiply }
-
-procedure Multiply;
-begin
-   Match('*');
-   Factor;
-   EmitLn('pop r9');
-   EmitLn('mov rax, r9');
-   EmitLn('mul r8');
-   EmitLn('mov r8, rax');
-end; { Multiply }
-
-{--------------------------------------------------------------}
-{ Recognize and Translate a Divide }
-
-procedure Divide;
-begin
-   Match('/');
-   Factor;
-   EmitLn('pop r9');
-   EmitLn('mov rax, r9');
-   EmitLn('xor rdx, rdx');
-   EmitLn('idiv r8');
-   EmitLn('mov r8, rax');
-end; { Divide }
-
-{--------------------------------------------------------------}
-{ Parse and Translate a Math Term }
-
-procedure Term;
-begin
-   Factor;
-   while Look in ['*', '/'] do begin
-	  EmitLn('push r8');
+   while not(Look in ['e']) do begin
 	  case Look of
-		'*'	: Multiply;
-		'/'	: Divide;
-	  end; { case }
-   end;
-end; { Term }
-
-{--------------------------------------------------------------}
-{ Recognize and Translate an Add }
-
-procedure Add;
-begin
-   Match('+');
-   Term;
-   EmitLn('pop r9');
-   EmitLn('add r8, r9');
-end; { Add }
-
-{--------------------------------------------------------------}
-{ Recognize and Translate a Subtract }
-
-procedure Subtract;
-begin
-   Match('-');
-   Term;
-   EmitLn('pop r9');
-   EmitLn('sub r8, r9');
-   EmitLn('neg r8');
-end; { Add }
-
-
-{--------------------------------------------------------------}
-{ Parse and Translate an Expression }
-
-procedure Expression;
-begin
-   if IsAddop(Look) then
-	  EmitLn('xor r8, r8')
-   else
-	  Term;
-   while IsAddop(Look) do begin
-	  EmitLn('push r8');
-	  case Look of
-		'+' : Add;
-		'-' : Subtract;
+		'i'	: DoIf;
+	  else Other;
 	  end; { case }
    end; { while }
-end; { Expression }
+end; { Block }
 
 {--------------------------------------------------------------}
-{ Parse and Translate an Assignment Statement }
+{ Parse and Translate a Program }
 
-procedure Assignment;
-var Name : char;
+procedure DoProgram;
 begin
-   Name := GetName;
-   Match('=');
-   Expression;
-   EmitLn('mov ' + 'r8, [' + Name + ']');
-end; { Assignment }
+   Block;
+   if Look <> 'e' then Expected('End');
+   EmitLn(';END')
+end; { DoProgram }
 
 {--------------------------------------------------------------}
-{ Main Program }
+{ Generate a Unique Label }
+
+function NewLabel: string;
+var S : string;
+begin
+   Str(LCount, S);
+   NewLabel := 'L' + S;
+   Inc(LCount);
+end; { NewLabel }
+
+{--------------------------------------------------------------}
+{ Post a Label to Output }
+
+procedure PostLabel(L : string);
+begin
+   WriteLn(L, ':');
+end; { PostLabel }
+
+{--------------------------------------------------------------}
+{ Parse and Translate a Boolean condition }
+{ Dummy function }
+
+procedure Condition;
+begin
+   EmitLn('<condition>');
+end; { Condition }
+
+{--------------------------------------------------------------}
+{ Recognize And Translate an IF Construct }
+
+procedure DoIf;
+var L1, L2: string;
+begin
+   Match('i');
+   Condition;
+   L1 := NewLabel;
+   L2 := L1;
+   EmitLn('jne ' + L1);
+   Block;
+   if Look = 'l' then begin
+	  Match('l');
+	  L2 := NewLabel;
+	  EmitLn('jmp ' + L2);
+	  PostLabel(L1);
+	  Block;
+   end;
+   Match('e');
+   PostLabel(L2);
+end; { DoIf }
+
+{--------------------------------------------------------------}
+{ Main Program } 
 
 begin
-   AsmRequiredBegin;
-   
    Init;
-   Assignment;
-
-   {if Look <> CR then Expected('Newline');}
-
-   AsmRequiredEnd;
+   DoProgram;
 end.
 {--------------------------------------------------------------}
